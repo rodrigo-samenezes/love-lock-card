@@ -1,3 +1,5 @@
+import 'https://cdn.jsdelivr.net/npm/sweetalert2@10';
+
 class LoveLockCard extends HTMLElement {
   constructor() {
     super();
@@ -11,11 +13,21 @@ class LoveLockCard extends HTMLElement {
     }
 
     // Check if password specified
-    if (config.popup == "password" && !config.password) {
+    if (config.popup == "password" && !config.password_config) {
       throw new Error(
-        "Type: Password Selected. You need to specify a password"
+        "Type: Password Selected. You need to specify a password_config"
       );
     }
+
+    if (config.popup == "password" && config.password_config) {
+      if (!config.password_config.password) {
+        throw new Error(
+          "Type: Password Selected. You need to specify a password_config.password"
+          );
+      }
+    }
+
+
 
     this.style.boxShadow =
       "var(--ha-card-box-shadow, 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 1px 5px 0 rgba(0, 0, 0, 0.12), 0 3px 1px -2px rgba(0, 0, 0, 0.2))";
@@ -45,16 +57,33 @@ class LoveLockCard extends HTMLElement {
     // Password Script
     var passwordScript = `
             var element = this;
-            var pass = prompt("Please enter your password");
-            if (pass !== ${password}) {
-                alert("Invalid Password");
-            } else {
-                element.setAttribute("style", ${coverHide});
-            }
-            setTimeout(function(){
-                element.setAttribute("style", ${coverShow});
-            }, 10000)
-            `;
+            Sweetalert2.fire({
+              title: "${config.password_config.title ?? "Please enter your password"}",
+              input: 'password',
+              inputLabel: "${config.password_config.label ?? "Password"}",
+              inputPlaceholder: "${config.password_config.placeholder ?? "Enter your password"}",
+              inputAttributes: {
+                maxlength: 10,
+                autocapitalize: 'off',
+                autocorrect: 'off'
+              }
+            }).then((result) => {
+              if (!result.isDismissed) {
+                if (result.value !== "${config.password_config.password}") {
+                  Sweetalert2.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: "${config.password_config.text_on_error ?? 'Something went wrong!'}"
+                  });
+                } else {
+                  Sweetalert2.fire({icon: 'success', showConfirmButton: false, timer: 1000});
+                  element.setAttribute("style", ${coverHide});
+                }
+                setTimeout(function(){
+                    element.setAttribute("style", ${coverShow});
+                }, 10000);
+              }
+            })`;
 
     // Confirm Script
     var confirmScript = `
@@ -92,6 +121,7 @@ class LoveLockCard extends HTMLElement {
     // Determine which lock/script to use
     if (config.popup == "password") {
       cover.setAttribute("onclick", passwordScript);
+
     } else if (config.popup == "confirm") {
       cover.setAttribute("onclick", confirmScript);
     } else if (config.popup == "timeout") {
